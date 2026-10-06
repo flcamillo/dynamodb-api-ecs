@@ -58,6 +58,12 @@ variable "service_name" {
   default     = "dynamodb-api"
 }
 
+variable "service_version" {
+  description = "Versão do serviço que irá subir no container"
+  type        = string
+  default     = "1.0.0"
+}
+
 variable "service_port" {
   description = "Porta do serviço que irá subir no container"
   type        = number
@@ -80,4 +86,10 @@ variable "sqs_name" {
   description = "Nome do SQS para notificar a lambda sobre arquivos criados no bucket, ela receberá eventos do SNS"
   type        = string
   default     = "process-s3-object-created"
+}
+
+variable "environment" {
+  description = "Ambiente de deploy"
+  type        = string
+  default     = "dev"
 }

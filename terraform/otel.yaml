@@ -1,0 +1,149 @@
+receivers:
+  # OTLP receiver configuration for both gRPC and HTTP protocols
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # AWS ECS Container Metrics receiver configuration
+  awsecscontainermetrics:
+    collection_interval: 10s
+
+  # Host Metrics receiver configuration for collecting system-level metrics
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      paging:
+        metrics:
+          system.paging.utilization:
+            enabled: true
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      disk:
+      filesystem:
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+      load:
+      memory:
+      network:
+      processes:
+
+  # Prometheus receiver configuration for scraping metrics from the OpenTelemetry Collector itself
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "otelcol"
+          scrape_interval: 10s
+          static_configs:
+            - targets: ["0.0.0.0:8888"]
+
+processors:
+  # Memory Limiter processor configuration to limit memory usage of the OpenTelemetry Collector
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+
+  # Resource processor configuration to add resource attributes to telemetry data
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: "${environment}"
+        action: upsert
+
+      - key: service.namespace
+        value: "platform"
+        action: upsert
+
+      - key: cloud.provider
+        value: "aws"
+        action: upsert
+
+      - key: cloud.platform
+        value: "aws_ecs"
+        action: upsert
+
+      - key: team
+        value: "backend"
+        action: upsert
+
+      - key: env
+        value: "${environment}"
+        action: upsert
+
+      - key: service
+        value: "${service_name}"
+        action: upsert
+
+      - key: version
+        value: "${version}"
+        action: upsert
+
+  # Batch processor configuration to batch telemetry data before exporting
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+exporters:
+  # Datadog exporter configuration to send telemetry data to Datadog
+  datadog:
+    api:
+      site: $${env:DD_SITE}
+      key: $${env:DD_API_KEY}
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      batch:
+        flush_timeout: 1s
+        min_size: 100
+        max_size: 500
+
+connectors:
+  # Datadog connector configuration to receive telemetry data from Datadog Agent
+  datadog/connector:
+
+service:
+  pipelines:
+    # Define a pipeline for traces received from OTLP receiver
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - datadog/connector
+        - datadog
+
+    # Define a pipeline for metrics received from various sources
+    metrics:
+      receivers:
+        - otlp
+        - awsecscontainermetrics
+        - hostmetrics
+        - prometheus
+        - datadog/connector
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - datadog
+
+    # Define a pipeline for logs received from OTLP receiver
+    logs:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - datadog

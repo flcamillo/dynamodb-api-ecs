@@ -1,3 +1,179 @@
+locals {
+
+  # define a configuração do otel para a task
+  otel_config = templatefile(
+    "${path.module}/otel.yaml",
+    {
+      environment  = var.environment
+      service_name = var.service_name
+      version      = var.service_version
+    }
+  )
+
+  # define a configuração da aplicação
+  task_application = {
+    name      = "${var.service_name}"
+    image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.sa-east-1.amazonaws.com/go-app:1.0"
+    essential = true
+    portMappings = [
+      {
+        containerPort = var.service_port
+        hostPort      = var.service_port
+        protocol      = "tcp"
+      }
+    ]
+    environment = [
+      {
+        name  = "OTEL_SERVICE_NAME"
+        value = "${var.service_name}"
+      },
+      {
+        name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+        value = "http://localhost:4317"
+      },
+      {
+        name  = "OTEL_RESOURCE_ATTRIBUTES"
+        value = "service.version=${var.service_version},deployment.environment=${var.environment},team=backend,via_resource=abc123,datadog.host.tag.tag_customizada=valor_customizado"
+      },
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-create-group  = "true"
+        awslogs-group         = "${aws_cloudwatch_log_group.task_definition_log_group.name}"
+        awslogs-region        = "${data.aws_region.current.name}"
+        awslogs-stream-prefix = "/ecs/${var.ecs_cluster_name}/app"
+      }
+    }
+  }
+
+  # define a configuração do processo do otel
+  task_otel = {
+    name      = "otel-collector"
+    image     = "otel/opentelemetry-collector-contrib:latest"
+    essential = true
+    command = [
+      "--config=env:OTEL_CONFIG"
+    ]
+    environment = [
+      {
+        name  = "OTEL_CONFIG"
+        value = local.otel_config
+      },
+      {
+        name  = "DD_API_KEY"
+        value = ""
+      },
+      {
+        name  = "DD_SITE"
+        value = "datadoghq.com"
+      }
+    ]
+    portMappings = [
+      {
+        containerPort = 4317
+        protocol      = "tcp"
+      },
+      {
+        containerPort = 4318
+        protocol      = "tcp"
+      }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-create-group  = "true"
+        awslogs-group         = "${aws_cloudwatch_log_group.task_definition_log_group.name}"
+        awslogs-region        = "${data.aws_region.current.name}"
+        awslogs-stream-prefix = "/ecs/${var.ecs_cluster_name}/otel"
+      }
+    }
+  }
+
+  # define a configuração do processo do agente do datadog
+  task_datadog = {
+    name      = "datadog-agent"
+    image     = "public.ecr.aws/datadog/agent:latest"
+    essential = true
+    portMappings = [
+      {
+        containerPort = 4317
+        hostPort      = 4317
+        protocol      = "tcp"
+      },
+      {
+        containerPort = 4318
+        hostPort      = 4318
+        protocol      = "tcp"
+      }
+    ]
+    environment = [
+      {
+        name  = "DD_API_KEY"
+        value = ""
+      },
+      {
+        name  = "DD_SITE"
+        value = "datadoghq.com"
+      },
+      {
+        name  = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT"
+        value = "0.0.0.0:4317"
+      },
+      {
+        name  = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT"
+        value = "0.0.0.0:4318"
+      },
+      {
+        name  = "DD_OTLP_CONFIG_LOGS_ENABLED"
+        value = "true"
+      },
+      {
+        name  = "DD_LOGS_ENABLED"
+        value = "true"
+      },
+      {
+        name  = "DD_APM_ENABLED"
+        value = "true"
+      },
+      {
+        name  = "DD_PROCESS_AGENT_ENABLED"
+        value = "true"
+      },
+      {
+        name  = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
+        value = "true"
+      },
+      {
+        name  = "DD_ENV"
+        value = "dev"
+      },
+      {
+        name  = "DD_TAGS"
+        value = "conta:aws ambiente:desenvolvimento sistema:ecs maquina:fargate"
+      },
+      {
+        name  = "DD_OTLP_CONFIG_LOGS_INFRA_ATTRIBUTES_TAGS_AS_DDTAGS"
+        value = "true"
+      },
+      {
+        name  = "ECS_FARGATE"
+        value = "true"
+      }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-create-group  = "true"
+        awslogs-group         = "${aws_cloudwatch_log_group.task_definition_log_group.name}"
+        awslogs-region        = "${data.aws_region.current.name}"
+        awslogs-stream-prefix = "/ecs/${var.ecs_cluster_name}/datadog-agent"
+      }
+    }
+  }
+
+}
+
 # define o padrão de tasks que serão executadas
 resource "aws_ecs_task_definition" "task_definition" {
   family                   = var.service_name
@@ -12,121 +188,8 @@ resource "aws_ecs_task_definition" "task_definition" {
     operating_system_family = "LINUX"
   }
   container_definitions = jsonencode([
-    {
-      name      = "${var.service_name}"
-      image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.sa-east-1.amazonaws.com/go-app:1.0"
-      essential = true
-      portMappings = [
-        {
-          containerPort = var.service_port
-          hostPort      = var.service_port
-          protocol      = "tcp"
-        }
-      ]
-      environment = [
-        {
-          name  = "OTEL_SERVICE_NAME"
-          value = "dynamodb-api"
-        },
-        {
-          name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
-          value = "http://localhost:4317"
-        },
-        {
-          name  = "OTEL_RESOURCE_ATTRIBUTES"
-          value = "service.version=1.0.0,deployment.environment=dev,team=backend,via_resource=abc123,datadog.host.tag.tag_customizada=valor_customizado"
-        },
-      ]
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-create-group  = "true"
-          awslogs-group         = "${aws_cloudwatch_log_group.task_definition_log_group.name}"
-          awslogs-region        = "${data.aws_region.current.name}"
-          awslogs-stream-prefix = "/ecs/${var.ecs_cluster_name}/app"
-        }
-      }
-    },
-    {
-      name      = "datadog-agent"
-      image     = "public.ecr.aws/datadog/agent:latest"
-      essential = true
-      portMappings = [
-        {
-          containerPort = 4317
-          hostPort      = 4317
-          protocol      = "tcp"
-        },
-        {
-          containerPort = 4318
-          hostPort      = 4318
-          protocol      = "tcp"
-        }
-      ]
-      environment = [
-        {
-          name  = "DD_API_KEY"
-          value = ""
-        },
-        {
-          name  = "DD_SITE"
-          value = "datadoghq.com"
-        },
-        {
-          name  = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT"
-          value = "0.0.0.0:4317"
-        },
-        {
-          name  = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT"
-          value = "0.0.0.0:4318"
-        },
-        {
-          name  = "DD_OTLP_CONFIG_LOGS_ENABLED"
-          value = "true"
-        },
-        {
-          name  = "DD_LOGS_ENABLED"
-          value = "true"
-        },
-        {
-          name  = "DD_APM_ENABLED"
-          value = "true"
-        },
-        {
-          name  = "DD_PROCESS_AGENT_ENABLED"
-          value = "true"
-        },
-        {
-          name  = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
-          value = "true"
-        },
-        {
-          name  = "DD_ENV"
-          value = "dev"
-        },
-        {
-          name  = "DD_TAGS"
-          value = "conta:aws ambiente:desenvolvimento sistema:ecs maquina:fargate"
-        },
-        {
-          name  = "DD_OTLP_CONFIG_LOGS_INFRA_ATTRIBUTES_TAGS_AS_DDTAGS"
-          value = "true"
-        },
-        {
-          name  = "ECS_FARGATE"
-          value = "true"
-        }
-      ]
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-create-group  = "true"
-          awslogs-group         = "${aws_cloudwatch_log_group.task_definition_log_group.name}"
-          awslogs-region        = "${data.aws_region.current.name}"
-          awslogs-stream-prefix = "/ecs/${var.ecs_cluster_name}/datadog-agent"
-        }
-      }
-    }
+    local.task_application,
+    local.task_otel,
   ])
   tags = {
     Project = "${var.project_name}"
