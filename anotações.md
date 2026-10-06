@@ -8,19 +8,19 @@ docker run -d --name dynamodb-api dynamodb-api:1.0
 aws ecr get-login-password --region sa-east-1 --profile terraform_user 
 
 # realize o login via docker e informe a senha do repositório gerada pelo comando anterior
-docker login --username AWS <numero_conta_aws>.dkr.ecr.sa-east-1.amazonaws.com
+docker login --username AWS <conta aws>.dkr.ecr.sa-east-1.amazonaws.com
 
 # adicione as tags na imagem docker local com o endereço do repositório
-docker tag dynamodb-api:1.0 <numero_conta_aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app:1.0
-docker tag dynamodb-api:1.0 <numero_conta_aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app:latest
+docker tag dynamodb-api:1.0 <conta aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app:1.0
+docker tag dynamodb-api:1.0 <conta aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app:latest
 
 # realize o docker push para enviar todas as tags da imagem para aws
-docker push --all-tags <numero_conta_aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app
+docker push --all-tags <conta aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app
 
 # para testar a aplicação no ecs
-set API_ADDRESS=54.232.137.232:7000
-curl http://%API_ADDRESS%/health
-curl http://%API_ADDRESS%/eventos
-curl http://%API_ADDRESS%/eventos/10
-curl -v -X POST http://%API_ADDRESS%/eventos
-curl -v -X DELETE http://%API_ADDRESS%/eventos/1
+    set API_ADDRESS=18.230.191.85:7000
+    curl http://%API_ADDRESS%/health
+    curl http://%API_ADDRESS%/eventos
+    curl http://%API_ADDRESS%/eventos/10
+    curl -v -X POST http://%API_ADDRESS%/eventos
+    curl -v -X DELETE http://%API_ADDRESS%/eventos/1

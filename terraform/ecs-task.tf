@@ -50,7 +50,7 @@ locals {
   # define a configuração do processo do otel
   task_otel = {
     name      = "otel-collector"
-    image     = "otel/opentelemetry-collector-contrib:latest"
+    image     = "otel/opentelemetry-collector-contrib:nightly"
     essential = true
     command = [
       "--config=env:OTEL_CONFIG"
