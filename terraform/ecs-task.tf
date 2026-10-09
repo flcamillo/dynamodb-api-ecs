@@ -33,7 +33,7 @@ locals {
       },
       {
         name  = "OTEL_RESOURCE_ATTRIBUTES"
-        value = "service.version=${var.service_version},deployment.environment=${var.environment},team=backend,via_resource=abc123,datadog.host.tag.tag_customizada=valor_customizado"
+        value = "service.name=${var.service_name},service.version=${var.service_version},deployment.environment.name=${var.environment},team=backend,via_resource=abc123,datadog.host.tag.tag_customizada=valor_customizado"
       },
     ]
     logConfiguration = {
@@ -62,11 +62,15 @@ locals {
       },
       {
         name  = "DD_API_KEY"
-        value = ""
+        value = "77dc229cfc6a3e1462f28e29892dd722"
       },
       {
         name  = "DD_SITE"
         value = "datadoghq.com"
+      },
+      {
+        name  = "DD_TAGS"
+        value = "conta:aws,ambiente:desenvolvimento,sistema:ecs,maquina:fargate,env:${var.environment},service:${var.service_name},version:${var.service_version}"
       }
     ]
     portMappings = [

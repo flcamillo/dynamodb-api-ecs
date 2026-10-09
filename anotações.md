@@ -18,9 +18,9 @@ docker tag dynamodb-api:1.0 <conta aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app:l
 docker push --all-tags <conta aws>.dkr.ecr.sa-east-1.amazonaws.com/go-app
 
 # para testar a aplicação no ecs
-    set API_ADDRESS=18.230.191.85:7000
-    curl http://%API_ADDRESS%/health
-    curl http://%API_ADDRESS%/eventos
-    curl http://%API_ADDRESS%/eventos/10
-    curl -v -X POST http://%API_ADDRESS%/eventos
-    curl -v -X DELETE http://%API_ADDRESS%/eventos/1
+set API_ADDRESS=56.125.193.103:7000
+curl http://%API_ADDRESS%/health
+curl http://%API_ADDRESS%/eventos
+curl http://%API_ADDRESS%/eventos/10
+curl -v -X POST http://%API_ADDRESS%/eventos
+curl -v -X DELETE http://%API_ADDRESS%/eventos/1

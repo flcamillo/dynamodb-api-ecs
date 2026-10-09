@@ -50,7 +50,7 @@ processors:
     spike_limit_mib: 64
 
   # Transform processor configuration to modify log data before exporting
-  transform/tag_logs:
+  transform:
     log_statements:
       - context: log
         statements:
@@ -69,20 +69,20 @@ processors:
   # Resource processor configuration to add resource attributes to telemetry data
   resource:
     attributes:
-      - key: "deployment.environment.name"
+      - key: env
         value: "${environment}"
         action: upsert
-      - key: "service.name"
+      - key: service
         value: "${service_name}"
         action: upsert
-      - key: "service.version"
+      - key: version
         value: "${version}"
         action: upsert
 
   # Batch processor configuration to batch telemetry data before exporting
   batch:
-    timeout: 5s
-    send_batch_size: 128
+    timeout: 10s
+    send_batch_size: 512
     send_batch_max_size: 1024
 
 exporters:
@@ -97,8 +97,8 @@ exporters:
       enabled: true
       num_consumers: 10
       batch:
-        flush_timeout: 5s
-        min_size: 10
+        flush_timeout: 10s
+        min_size: 100
         max_size: 500
 
 connectors:
@@ -131,6 +131,7 @@ service:
       processors:
         - memory_limiter
         - resourcedetection
+        - transform
         - resource
         - batch
       exporters:
@@ -143,7 +144,7 @@ service:
       processors:
         - memory_limiter
         - resourcedetection
-        - transform/tag_logs
+        - transform
         - resource
         - batch
       exporters:

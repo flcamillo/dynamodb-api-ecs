@@ -3,4 +3,5 @@
 *.hcl
 *.tfstate
 *.backup
-*.terraform*
+*.terraform
+*.terraform.*
